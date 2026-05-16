@@ -1,0 +1,15 @@
+# 忽略 Qt 生成的编译文件夹
+build-*/
+build/
+*.build/
+
+# 忽略临时文件和环境配置文件
+*.user
+*.user.*
+*.stash
+.qmake.stash
+CMakeLists.txt.user*
+
+# 忽略操作系统的缓存
+.DS_Store
+Thumbs.db
