@@ -214,8 +214,8 @@ void MainWindow::updateDayUI(int day)
 
 void MainWindow::updateStatsUI(long totalInfected, long totalDead)
 {
-    long totalPopulation = 8059506979; // 假定总人口
-    long healthy = totalPopulation - totalInfected - totalDead;
+    long long totalPopulation = 8059506979LL; // 假定总人口（注意：Windows 上 long 为 32 位，需用 long long）
+    long long healthy = totalPopulation - totalInfected - totalDead;
 
     QLabel *worldDataLabel = this->findChild<QLabel*>("WorldDataLabel");
     if (worldDataLabel) {

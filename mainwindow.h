@@ -1,18 +1,15 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QMainWindow>
 #include <QLabel>
+#include <QMainWindow>
 #include <QPushButton>
 #include <QStackedWidget>
 #include "GameCore.h"
 #include "MapWidget.h"
 
-QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
-QT_END_NAMESPACE
-
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow
+{
     Q_OBJECT
 
 public:
@@ -29,8 +26,6 @@ private slots:
     void onStartClicked();
 
 private:
-    Ui::MainWindow *ui;
-
     // 核心组件指针
     GameCore *m_core;
     MapWidget *m_map;

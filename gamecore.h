@@ -1,12 +1,13 @@
 #ifndef GAMECORE_H
 #define GAMECORE_H
 
+#include <QMap>
 #include <QObject>
 #include <QTimer>
-#include <QMap>
 #include "GameTypes.h"
 
-class GameCore : public QObject {
+class GameCore : public QObject
+{
     Q_OBJECT
 public:
     explicit GameCore(QObject *parent = nullptr);
