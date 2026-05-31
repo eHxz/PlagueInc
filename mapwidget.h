@@ -1,14 +1,15 @@
 #ifndef MAPWIDGET_H
 #define MAPWIDGET_H
 
-#include <QGraphicsView>
-#include <QGraphicsScene>
 #include <QGraphicsPathItem>
-#include <QWheelEvent>
+#include <QGraphicsScene>
+#include <QGraphicsView>
 #include <QMap>
+#include <QWheelEvent>
 #include "GameTypes.h"
 
-class MapWidget : public QGraphicsView {
+class MapWidget : public QGraphicsView
+{
     Q_OBJECT
 public:
     explicit MapWidget(QWidget *parent = nullptr);
@@ -23,7 +24,7 @@ private:
 
     QGraphicsScene *m_scene;
     // 存储国家名字与地图图元的对应关系
-    QMap<QString, QGraphicsPathItem*> m_countryItems;
+    QMap<QString, QGraphicsPathItem *> m_countryItems;
 
 protected:
     // TODO: B同学实现缩放和平移逻辑

@@ -1,6 +1,6 @@
 #include "MainWindow.h"
-#include "ui_mainwindow.h"
 #include <QVBoxLayout>
+#include "ui_mainwindow.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -22,11 +22,13 @@ MainWindow::MainWindow(QWidget *parent)
     applyStyle();
 }
 
-MainWindow::~MainWindow() {
+MainWindow::~MainWindow()
+{
     delete ui;
 }
 
-void MainWindow::setupConnections() {
+void MainWindow::setupConnections()
+{
     // TODO (C同学): 在这里连接 A、B、C 之间的信号与槽
 
     // 示例：当 Core 发射天数变化信号，更新 UI 上的天数标签
@@ -39,23 +41,28 @@ void MainWindow::setupConnections() {
     // connect(ui->btnStart, &QPushButton::clicked, this, &MainWindow::onStartClicked);
 }
 
-void MainWindow::updateDayUI(int day) {
+void MainWindow::updateDayUI(int day)
+{
     // TODO (C同学): ui->lblDay->setText(QString("Day: %1").arg(day));
 }
 
-void MainWindow::updateStatsUI(long totalInfected, long totalDead) {
+void MainWindow::updateStatsUI(long totalInfected, long totalDead)
+{
     // TODO (C同学): 更新界面上的总感染数、总死亡数标签
 }
 
-void MainWindow::updateDNAPoints(int points) {
+void MainWindow::updateDNAPoints(int points)
+{
     // TODO (C同学): 更新 DNA 点数显示
 }
 
-void MainWindow::onStartClicked() {
+void MainWindow::onStartClicked()
+{
     m_core->startGame();
     // TODO (C同学): 切换 QStackedWidget 到游戏运行页面
 }
 
-void MainWindow::applyStyle() {
+void MainWindow::applyStyle()
+{
     // TODO (C同学): 使用 this->setStyleSheet(...) 写 QSS 美化界面
 }

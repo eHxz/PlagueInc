@@ -13,7 +13,8 @@ GameCore::GameCore(QObject *parent)
     connect(m_timer, &QTimer::timeout, this, &GameCore::onTick);
 }
 
-void GameCore::initFakeData() {
+void GameCore::initFakeData()
+{
     // TODO (A同学):
     // 第一周：先手动造几个国家数据，确保地图能显示。
     // 未来：可以改为读取 JSON 配置文件。
@@ -37,31 +38,36 @@ void GameCore::initFakeData() {
     qDebug() << "A同学：假数据初始化完成，包含国家：" << m_worldMap.keys();
 }
 
-void GameCore::startGame() {
+void GameCore::startGame()
+{
     if (!m_timer->isActive()) {
         m_timer->start(1000); // 1000毫秒 = 1秒游戏内的一天
         qDebug() << "A同学：引擎启动，时间开始流导...";
     }
 }
 
-void GameCore::pauseGame() {
+void GameCore::pauseGame()
+{
     m_timer->stop();
     qDebug() << "A同学：引擎暂停";
 }
 
-void GameCore::collectDNA(int amount) {
+void GameCore::collectDNA(int amount)
+{
     m_dnaPoints += amount;
     // 通知 C 同学更新界面上的 DNA 数字
     emit dnaPointsChanged(m_dnaPoints);
 }
 
-void GameCore::upgradeTrait(QString traitName) {
+void GameCore::upgradeTrait(QString traitName)
+{
     // TODO (A同学):
     // 第二周任务：根据升级的项目，修改病毒的传染率、死亡率等全局系数
     qDebug() << "A同学：处理升级请求：" << traitName;
 }
 
-void GameCore::onTick() {
+void GameCore::onTick()
+{
     // 1. 天数增加
     m_currentDay++;
 
