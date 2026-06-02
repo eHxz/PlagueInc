@@ -28,6 +28,12 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         GameCore.h
         gamecore.h gamecore.cpp
         mapwidget.h mapwidget.cpp
+        populationbar.h populationbar.cpp
+        skilltree.h skilltree.cpp
+        hexnode.h hexnode.cpp
+        diseasemenu.h diseasemenu.cpp
+        worldmenu.h worldmenu.cpp
+        regions.h
         res.qrc
 
     )
