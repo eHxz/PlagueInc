@@ -52,6 +52,7 @@ public slots:
     void collectDNA(int amount);   // 点击气泡收集 DNA
 
     void seedInfection(int regionId); // 玩家选定初始地区，投放 1 名感染者
+    void setDiseaseName(const QString &name); // 初始命名病原体
     void evolveSkill(const QString &id);  // 花费 DNA 解锁技能
     void devolveSkill(const QString &id); // 退化技能：取消加成、退还 DNA（已显示的不再隐藏）
 

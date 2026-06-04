@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
-        <file>assets/worldChinaHigh.svg</file>
+        <file>assets/worldEquirect.svg</file>
+        <file>assets/satellite.jpg</file>
     </qresource>
 </RCC>

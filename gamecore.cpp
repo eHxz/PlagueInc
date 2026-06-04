@@ -12,6 +12,7 @@ static const double kDiscoverSeverity  = 0.30;   // 或严重性达到此值 -> 
 static const double kCureBase          = 0.55;   // 解药研发基础速率系数
 static const double kCureSlowScale     = 0.18;   // 特殊能力减缓解药的换算系数
 static const int    kInfiniteDNA       = 999999; // 作弊时的 DNA 数值
+static const int    kDnaCap            = 100;    // DNA 上限
 
 GameCore::GameCore(QObject *parent)
     : QObject(parent)
@@ -182,7 +183,7 @@ void GameCore::devolveSkill(const QString &id)
 
     m_unlocked.remove(id);
     if (!m_infiniteDna)
-        m_dnaPoints += s->cost; // 退还 DNA；已显示的相邻技能保持可见
+        m_dnaPoints = qMin(m_dnaPoints + s->cost, kDnaCap); // 退还 DNA（不超过上限）
     recomputeDisease();
     emit dnaPointsChanged(m_dnaPoints);
     emit diseaseStatsChanged(m_disease);
@@ -217,8 +218,14 @@ void GameCore::collectDNA(int amount)
 {
     if (m_infiniteDna)
         return;
-    m_dnaPoints += amount;
+    m_dnaPoints = qMin(m_dnaPoints + amount, kDnaCap); // 不超过 DNA 上限
     emit dnaPointsChanged(m_dnaPoints);
+}
+
+void GameCore::setDiseaseName(const QString &name)
+{
+    const QString trimmed = name.trimmed();
+    m_diseaseName = trimmed.isEmpty() ? QStringLiteral("Plague") : trimmed;
 }
 
 long long GameCore::worldInfected() const
@@ -291,7 +298,7 @@ void GameCore::onTick()
         if (m_dnaAccum >= 1.0) {
             int add = static_cast<int>(m_dnaAccum);
             m_dnaAccum -= add;
-            m_dnaPoints += add;
+            m_dnaPoints = qMin(m_dnaPoints + add, kDnaCap); // 受 DNA 上限约束
             emit dnaPointsChanged(m_dnaPoints);
         }
     }

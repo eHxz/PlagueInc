@@ -261,22 +261,24 @@ void DiseaseMenu::onTabClicked(int tab)
     m_infoPanel->setVisible(!overview);
 
     if (overview) {
-        QDate today(2026, 6, 1);
+        QDate startDate = m_core->startDate();
         DiseaseStats d = m_core->diseaseStats();
         QString origin = "未知";
         for (const RegionData &r : m_core->regions())
             if (r.isInfected) { origin = r.name; break; }
         m_overview->setText(
-            QString("<b style='font-size:20px;color:#ff8088;'>疾病概况</b><br><br>"
-                    "开始地点：%1<br>"
-                    "开始日期：%2<br><br>"
-                    "传染性：%3<br>"
-                    "严重性：%4<br>"
-                    "致命性：%5<br>"
-                    "解药状态：%6<br><br>"
+            QString("<b style='font-size:22px;color:#ff8088;'>%1</b><br>"
+                    "<span style='color:#c89aa0;'>疾病概况</span><br><br>"
+                    "开始地点：%2<br>"
+                    "开始日期：%3<br><br>"
+                    "传染性：%4<br>"
+                    "严重性：%5<br>"
+                    "致命性：%6<br>"
+                    "解药状态：%7<br><br>"
                     "提示：在地图上点击一个地区即可选择疫情起源。")
+                .arg(m_core->diseaseName())
                 .arg(origin)
-                .arg(today.toString("dd MMMM yyyy"))
+                .arg(startDate.toString("dd MMMM yyyy"))
                 .arg(QString::number(d.infectivity, 'f', 2))
                 .arg(QString::number(d.severity, 'f', 2))
                 .arg(QString::number(d.lethality, 'f', 2))

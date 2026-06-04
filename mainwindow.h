@@ -12,6 +12,9 @@
 #include "diseasemenu.h"
 #include "worldmenu.h"
 
+class QLineEdit;
+class QStackedLayout;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -47,6 +50,11 @@ private slots:
     void openWorldMenu();
     void closeWorldMenu();
 
+    // 初始命名页 / 设置
+    void confirmDiseaseName(); // 命名后进入主游戏
+    void openSettings();       // 左上角设置：返回 / 重开
+    void restartGame();        // 重开：回到命名页
+
 protected:
     void resizeEvent(QResizeEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override; // 监听作弊码输入
@@ -66,6 +74,10 @@ private:
     WorldMenu *m_worldMenu = nullptr;
 
     QWidget *m_centralWidget = nullptr;
+    QStackedLayout *m_mainStack = nullptr;
+    QWidget *m_gameView = nullptr;
+    QWidget *m_namePage = nullptr;
+    QLineEdit *m_nameEdit = nullptr;
     QFrame *m_gameTopBar = nullptr;
     QFrame *m_gameBottomBar = nullptr;
     int m_currentSpeed = 1; // 0暂停 1正常 2两倍

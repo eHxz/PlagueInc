@@ -481,9 +481,17 @@ void WorldMenu::refreshAll()
     if (m_cureDays) {
         QString days;
         double rate = m_core->cureRatePerDay();
-        if (cure >= 100.0) days = "0 天";
-        else if (!disc || rate <= 1e-9) days = "— 天";
-        else days = QString("%1 天").arg(static_cast<int>(std::ceil((100.0 - cure) / rate)));
+        if (cure >= 100.0) {
+            days = "0 天";
+        } else if (!disc || rate <= 1e-9) {
+            // 未发现疫病，或研究速度过于缓慢（如人类快要灭绝）
+            days = "> 10 年";
+        } else {
+            double d = std::ceil((100.0 - cure) / rate);
+            if (d > 3650.0) days = "> 10 年";                                  // 超过 10 年
+            else if (d > 365.0) days = QString("%1 年").arg(d / 365.0, 0, 'f', 1); // 超过 1 年 -> 用年
+            else days = QString("%1 天").arg(static_cast<int>(d));
+        }
         m_cureDays->setText(days);
     }
     if (m_curePercent) m_curePercent->setText(QString("%1%").arg(static_cast<int>(cure)));

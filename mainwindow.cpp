@@ -5,6 +5,8 @@
 #include <QFrame>
 #include <QDate>
 #include <QLocale>
+#include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
 #include <QResizeEvent>
 #include <QKeyEvent>
@@ -25,11 +27,13 @@ MainWindow::MainWindow(QWidget *parent)
     m_centralWidget = centralWidget;
     this->setCentralWidget(centralWidget);
     QStackedLayout *mainStack = new QStackedLayout(centralWidget);
+    m_mainStack = mainStack;
 
     // ==========================================
     // 页面 0: 主游戏视图
     // ==========================================
     QWidget *gameView = new QWidget();
+    m_gameView = gameView;
     QVBoxLayout *gameLayout = new QVBoxLayout(gameView);
     gameLayout->setContentsMargins(0, 0, 0, 0);
     gameLayout->setSpacing(0);
@@ -115,6 +119,55 @@ MainWindow::MainWindow(QWidget *parent)
     mainStack->addWidget(gameView); // Index 0
 
     // ==========================================
+    // 命名页：初始进入游戏时为病原体命名
+    // ==========================================
+    QWidget *namePage = new QWidget();
+    m_namePage = namePage;
+    namePage->setObjectName("NamePage");
+    QVBoxLayout *nameLayout = new QVBoxLayout(namePage);
+    nameLayout->addStretch();
+
+    QLabel *nameTitle = new QLabel("为你的病原体命名");
+    nameTitle->setObjectName("NameTitle");
+    nameTitle->setAlignment(Qt::AlignHCenter);
+    QLabel *nameHint = new QLabel("输入名称后，点击地图上的地区即可开始这场全球瘟疫");
+    nameHint->setObjectName("NameHint");
+    nameHint->setAlignment(Qt::AlignHCenter);
+
+    m_nameEdit = new QLineEdit();
+    m_nameEdit->setObjectName("NameEdit");
+    m_nameEdit->setPlaceholderText("例如：瘟疫");
+    m_nameEdit->setMaxLength(20);
+    m_nameEdit->setAlignment(Qt::AlignHCenter);
+    m_nameEdit->setFixedWidth(380);
+
+    QPushButton *nameOk = new QPushButton("开  始");
+    nameOk->setObjectName("NameOkBtn");
+    nameOk->setFixedWidth(380);
+    nameOk->setCursor(Qt::PointingHandCursor);
+
+    nameLayout->addWidget(nameTitle);
+    nameLayout->addSpacing(10);
+    nameLayout->addWidget(nameHint);
+    nameLayout->addSpacing(34);
+    QHBoxLayout *editRow = new QHBoxLayout();
+    editRow->addStretch(); editRow->addWidget(m_nameEdit); editRow->addStretch();
+    nameLayout->addLayout(editRow);
+    nameLayout->addSpacing(16);
+    QHBoxLayout *btnRow = new QHBoxLayout();
+    btnRow->addStretch(); btnRow->addWidget(nameOk); btnRow->addStretch();
+    nameLayout->addLayout(btnRow);
+    nameLayout->addStretch();
+
+    mainStack->addWidget(namePage); // Index 1
+
+    connect(nameOk, &QPushButton::clicked, this, &MainWindow::confirmDiseaseName);
+    connect(m_nameEdit, &QLineEdit::returnPressed, this, &MainWindow::confirmDiseaseName);
+
+    // 左上角设置：返回 / 重开
+    connect(btnSettings, &QPushButton::clicked, this, &MainWindow::openSettings);
+
+    // ==========================================
     // 疾病菜单 / 世界概况菜单：半透明覆盖层（盖在游戏视图上，地图透出）
     // ==========================================
     m_diseaseMenu = new DiseaseMenu(m_core, centralWidget);
@@ -152,6 +205,9 @@ MainWindow::MainWindow(QWidget *parent)
     // 默认正常速度（时间在选定地区后才真正流动）
     setSpeedNormal();
 
+    // 初始停在命名页，命名后再进入主游戏
+    mainStack->setCurrentWidget(namePage);
+
     // 监听键盘以捕获作弊码
     qApp->installEventFilter(this);
 }
@@ -177,6 +233,8 @@ void MainWindow::setupConnections()
     connect(m_core, &GameCore::newRegionInfected, m_map, &MapWidget::onNewRegionInfected);
     connect(m_core, &GameCore::infectionSurge, m_map, &MapWidget::onInfectionSurge);
     connect(m_map, &MapWidget::dnaCollected, m_core, &GameCore::collectDNA);
+    // 气泡寿命随游戏时间流逝（受倍速/暂停影响）
+    connect(m_core, &GameCore::dayPassed, m_map, &MapWidget::onDayTick);
 
     // 地图点击 -> 底部条切换
     connect(m_map, &MapWidget::regionSelected, this, &MainWindow::onRegionSelected);
@@ -350,6 +408,61 @@ void MainWindow::closeWorldMenu()
     applySpeed(m_savedSpeed);
 }
 
+// ==========================================
+// 命名页 / 设置（返回·重开）
+// ==========================================
+void MainWindow::confirmDiseaseName()
+{
+    if (m_nameEdit)
+        m_core->setDiseaseName(m_nameEdit->text()); // 空则回退为默认名
+    if (m_mainStack && m_gameView)
+        m_mainStack->setCurrentWidget(m_gameView);
+}
+
+void MainWindow::openSettings()
+{
+    QMenu menu(this);
+    QAction *back = menu.addAction("返回");   // 关闭设置，继续游戏
+    QAction *restart = menu.addAction("重开"); // 重置并回到命名页
+    QAction *chosen = menu.exec(QCursor::pos());
+    if (chosen == restart)
+        restartGame();
+    else
+        Q_UNUSED(back); // 返回：直接关闭弹出菜单
+}
+
+void MainWindow::restartGame()
+{
+    // 关闭可能打开的覆盖层
+    if (m_diseaseMenu && m_diseaseMenu->isVisible())
+        closeDiseaseMenu();
+    if (m_worldMenu && m_worldMenu->isVisible())
+        closeWorldMenu();
+
+    m_core->initWorld();   // 重置世界（含 m_seeded=false、日期、解药、历史）
+    m_map->resetMap();     // 清空气泡与点阵密度
+
+    m_regionSnapshot = m_core->regions();
+    m_worldTotal = 0;
+    for (const RegionData &r : m_regionSnapshot)
+        m_worldTotal += r.totalPopulation;
+    m_worldInfected = 0;
+    m_worldDead = 0;
+    m_worldAlive = m_worldTotal;
+    m_selectedRegion = -1;
+
+    if (m_nameEdit) {
+        m_nameEdit->clear();
+        m_nameEdit->setFocus();
+    }
+    refreshBottomBar();
+    updateDayUI(0);
+    applySpeed(1);
+
+    if (m_mainStack && m_namePage)
+        m_mainStack->setCurrentWidget(m_namePage); // 回到命名页
+}
+
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
@@ -451,5 +564,19 @@ void MainWindow::applyStyle()
             border-right: 2px solid #333;
         }
         #WorldDataLabel { font-size: 24px; color: #FFFFFF; padding: 40px; }
+
+        #NamePage { background-color: #0a0e14; }
+        #NameTitle { font-size: 36px; color: #FFFFFF; font-weight: bold; }
+        #NameHint { font-size: 16px; color: #7fa8cc; }
+        #NameEdit {
+            font-size: 22px; padding: 12px; border-radius: 6px;
+            background-color: #16202c; color: #FFFFFF; border: 1px solid #2a4a66;
+        }
+        #NameEdit:focus { border: 1px solid #00AAFF; }
+        #NameOkBtn {
+            font-size: 22px; font-weight: bold; padding: 13px;
+            color: #FFFFFF; background-color: #0088CC; border: none; border-radius: 6px;
+        }
+        #NameOkBtn:hover { background-color: #00AAFF; }
     )");
 }
