@@ -2,5 +2,80 @@
     <qresource prefix="/">
         <file>assets/worldEquirect.svg</file>
         <file>assets/satellite.jpg</file>
+        <file>graph/airport.jpg</file>
+        <file>graph/port.jpg</file>
+        <file>graph/plane.jpg</file>
+        <file>graph/ship.jpg</file>
+        <file>graph/red_plane.jpg</file>
+        <file>graph/red_ship.jpg</file>
+        <file alias="bubble/red.png">assets/bubble/red.png</file>
+        <file alias="bubble/orange.png">assets/bubble/orange.png</file>
+        <file alias="mainui/disease.png">assets/mainui/disease.png</file>
+        <file alias="mainui/cure.png">assets/mainui/cure.png</file>
+        <file alias="mainui/world.png">assets/mainui/world.png</file>
+        <file alias="mainui/news.png">assets/mainui/news.png</file>
+        <file alias="mainui/notice.png">assets/mainui/notice.png</file>
+        <file alias="notice.txt">notice.txt</file>
+        <file alias="hex/0/1.png">assets/hex/0/1.png</file>
+        <file alias="hex/0/3.png">assets/hex/0/3.png</file>
+        <file alias="hex/0/6.png">assets/hex/0/6.png</file>
+        <file alias="hex/0/7.png">assets/hex/0/7.png</file>
+        <file alias="hex/0/8.png">assets/hex/0/8.png</file>
+        <file alias="hex/0/11.png">assets/hex/0/11.png</file>
+        <file alias="hex/0/13.png">assets/hex/0/13.png</file>
+        <file alias="hex/0/16.png">assets/hex/0/16.png</file>
+        <file alias="hex/0/19.png">assets/hex/0/19.png</file>
+        <file alias="hex/0/22.png">assets/hex/0/22.png</file>
+        <file alias="hex/0/24.png">assets/hex/0/24.png</file>
+        <file alias="hex/0/28.png">assets/hex/0/28.png</file>
+        <file alias="hex/0/40.png">assets/hex/0/40.png</file>
+        <file alias="hex/0/43.png">assets/hex/0/43.png</file>
+        <file alias="hex/0/46.png">assets/hex/0/46.png</file>
+        <file alias="hex/0/47.png">assets/hex/0/47.png</file>
+        <file alias="hex/0/48.png">assets/hex/0/48.png</file>
+        <file alias="hex/1/1.png">assets/hex/1/1.png</file>
+        <file alias="hex/1/3.png">assets/hex/1/3.png</file>
+        <file alias="hex/1/4.png">assets/hex/1/4.png</file>
+        <file alias="hex/1/6.png">assets/hex/1/6.png</file>
+        <file alias="hex/1/7.png">assets/hex/1/7.png</file>
+        <file alias="hex/1/8.png">assets/hex/1/8.png</file>
+        <file alias="hex/1/10.png">assets/hex/1/10.png</file>
+        <file alias="hex/1/11.png">assets/hex/1/11.png</file>
+        <file alias="hex/1/13.png">assets/hex/1/13.png</file>
+        <file alias="hex/1/16.png">assets/hex/1/16.png</file>
+        <file alias="hex/1/18.png">assets/hex/1/18.png</file>
+        <file alias="hex/1/19.png">assets/hex/1/19.png</file>
+        <file alias="hex/1/21.png">assets/hex/1/21.png</file>
+        <file alias="hex/1/22.png">assets/hex/1/22.png</file>
+        <file alias="hex/1/23.png">assets/hex/1/23.png</file>
+        <file alias="hex/1/25.png">assets/hex/1/25.png</file>
+        <file alias="hex/1/26.png">assets/hex/1/26.png</file>
+        <file alias="hex/1/28.png">assets/hex/1/28.png</file>
+        <file alias="hex/1/29.png">assets/hex/1/29.png</file>
+        <file alias="hex/1/30.png">assets/hex/1/30.png</file>
+        <file alias="hex/1/32.png">assets/hex/1/32.png</file>
+        <file alias="hex/1/33.png">assets/hex/1/33.png</file>
+        <file alias="hex/1/35.png">assets/hex/1/35.png</file>
+        <file alias="hex/1/38.png">assets/hex/1/38.png</file>
+        <file alias="hex/1/40.png">assets/hex/1/40.png</file>
+        <file alias="hex/1/41.png">assets/hex/1/41.png</file>
+        <file alias="hex/1/43.png">assets/hex/1/43.png</file>
+        <file alias="hex/1/44.png">assets/hex/1/44.png</file>
+        <file alias="hex/1/45.png">assets/hex/1/45.png</file>
+        <file alias="hex/1/47.png">assets/hex/1/47.png</file>
+        <file alias="hex/1/48.png">assets/hex/1/48.png</file>
+        <file alias="hex/1/50.png">assets/hex/1/50.png</file>
+        <file alias="hex/2/1.png">assets/hex/2/1.png</file>
+        <file alias="hex/2/3.png">assets/hex/2/3.png</file>
+        <file alias="hex/2/5.png">assets/hex/2/5.png</file>
+        <file alias="hex/2/7.png">assets/hex/2/7.png</file>
+        <file alias="hex/2/8.png">assets/hex/2/8.png</file>
+        <file alias="hex/2/10.png">assets/hex/2/10.png</file>
+        <file alias="hex/2/11.png">assets/hex/2/11.png</file>
+        <file alias="hex/2/13.png">assets/hex/2/13.png</file>
+        <file alias="hex/2/16.png">assets/hex/2/16.png</file>
+        <file alias="hex/2/17.png">assets/hex/2/17.png</file>
+        <file alias="hex/2/22.png">assets/hex/2/22.png</file>
+        <file alias="hex/2/27.png">assets/hex/2/27.png</file>
     </qresource>
 </RCC>

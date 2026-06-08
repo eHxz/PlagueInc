@@ -24,6 +24,10 @@ struct DiseaseStats
     double infectivity = 0.0; // 传染性：影响地区内增长与跨区传播
     double severity = 0.0;    // 严重性：影响“被发现”与解药研发速度
     double lethality = 0.0;   // 致命性：每天感染者转为死亡的比例
+    // 海/空途径乘区（formula 形式二的载毒概率系数）：随【空气/水源传播】技能提升。
+    // 由 GameCore::recomputeDisease() 计算后随 diseaseStatsChanged 一并下发给地图。
+    // 默认值即 GameParams::kRouteModifierBase（极低）。
+    double routeModifier = 0.10;
 };
 
 // 每天记录一份历史快照，供“其他数据”里的各曲线图绘制

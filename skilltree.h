@@ -30,8 +30,9 @@ struct SkillDef
     double dLethality   = 0.0; // 致命性
     double dCureSlow    = 0.0; // >0：减缓解药研发；足够大可使其倒退（仅特殊能力）
 
-    QPointF pos;             // 归一化布局坐标 [0,1] × [0,1]
-    QStringList neighbors;   // 相邻技能 id（解锁本技能后这些会显示出来）
+    int cell = 0;            // 蜂窝格编号 1..55（一列一列从上到下排序）
+    QStringList neighbors;   // 显形传播用：相邻/前置-后继 id（解锁本技能后这些会显形）
+    QStringList prereqs;     // 前置技能 id：必须全部解锁后本技能才可进化（传播途径/特殊能力用；发病症状为空=仅相邻）
     bool root = false;       // 初始即可见
 };
 

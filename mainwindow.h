@@ -11,6 +11,8 @@
 #include "populationbar.h"
 #include "diseasemenu.h"
 #include "worldmenu.h"
+#include "hudpanel.h"
+#include "notice.h"
 
 class QLineEdit;
 class QStackedLayout;
@@ -57,6 +59,7 @@ private slots:
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void showEvent(QShowEvent *event) override;                 // 窗口显示到最终尺寸后再摆放 HUD
     bool eventFilter(QObject *watched, QEvent *event) override; // 监听作弊码输入
 
 private:
@@ -65,6 +68,8 @@ private:
     void refreshBottomBar();
     void highlightSpeed(int which); // 0暂停 1正常 2两倍
     void applySpeed(int which);     // 0暂停 1正常 2两倍
+    void layoutHud();               // 摆放主页面 HUD 覆盖层（新闻/DNA/解药/世界条/进度条）
+    void setHudVisible(bool on);    // 进入/退出菜单时整体隐藏/显示 HUD
 
     // 核心组件
     GameCore *m_core;
@@ -72,6 +77,8 @@ private:
     PopulationBar *m_popBar;
     DiseaseMenu *m_diseaseMenu = nullptr;
     WorldMenu *m_worldMenu = nullptr;
+    NoticePopup *m_noticePopup = nullptr;     // 主页面正中央的报告弹窗
+    NoticeManager *m_noticeManager = nullptr; // 报告触发逻辑
 
     QWidget *m_centralWidget = nullptr;
     QStackedLayout *m_mainStack = nullptr;
@@ -80,9 +87,22 @@ private:
     QLineEdit *m_nameEdit = nullptr;
     QFrame *m_gameTopBar = nullptr;
     QFrame *m_gameBottomBar = nullptr;
-    int m_currentSpeed = 1; // 0暂停 1正常 2两倍
-    int m_savedSpeed = 1;   // 进入菜单前的流速
-    QString m_cheatBuf;     // 作弊码输入缓冲
+
+    // 主页面 HUD 覆盖层（绝对定位在游戏视图上，浮在地图之上）
+    HudPanel *m_newsPanel = nullptr;    // 左上角：新闻
+    HudPanel *m_diseasePanel = nullptr; // 左下角：DNA（点击进疾病概况）
+    HudPanel *m_curePanel = nullptr;    // 右下角：解药进度（点击进世界概况）
+    HudPanel *m_worldPanel = nullptr;   // 下方正中：全球/观测地区 名字+感染+死亡（点击进世界概况）
+    QWidget *m_topRight = nullptr;      // 右上角：日期 + 设置 + 速度按钮
+    QLabel *m_dateLabel = nullptr;
+    QPushButton *m_settingsBtn = nullptr;
+    int m_newsSlot = -1, m_dnaSlot = -1, m_cureSlot = -1;
+    int m_wName = -1, m_wInfected = -1, m_wDead = -1;
+
+    int m_currentSpeed = 1;      // 0暂停 1正常 2两倍
+    int m_savedSpeed = 1;        // 进入菜单前的流速
+    int m_speedBeforeNotice = 1; // 弹出报告前的流速（关闭后恢复）
+    QString m_cheatBuf;          // 作弊码输入缓冲
 
     // 速度按钮
     QPushButton *m_btnPause = nullptr;

@@ -43,7 +43,11 @@ public:
     const QVector<SkillDef> &skills(int page) const;
     bool isUnlocked(const QString &id) const { return m_unlocked.contains(id); }
     bool isRevealed(const QString &id) const { return m_revealed.contains(id); }
+    int  unlockedSkillCount() const { return m_unlocked.size(); } // 已解锁技能数（报告触发用）
     bool canAfford(const QString &id) const;
+    bool prereqsMet(const QString &id) const;          // 前置技能是否已全部解锁
+    bool isBuyable(const QString &id) const;            // 已显形 + 未解锁 + 前置满足 + 买得起
+    QStringList missingPrereqNames(const QString &id) const; // 尚未解锁的前置技能名（用于提示）
 
 public slots:
     void startGame();
@@ -52,11 +56,14 @@ public slots:
     void collectDNA(int amount);   // 点击气泡收集 DNA
 
     void seedInfection(int regionId); // 玩家选定初始地区，投放 1 名感染者
+    void seedExternalInfection(int regionId); // 受感染的飞机/轮船抵达：在目标地区投放外来病例
     void setDiseaseName(const QString &name); // 初始命名病原体
     void evolveSkill(const QString &id);  // 花费 DNA 解锁技能
     void devolveSkill(const QString &id); // 退化技能：取消加成、退还 DNA（已显示的不再隐藏）
 
     void setInfiniteDNA(bool on); // 作弊：DNA 无限
+    void toggleInfiniteDNA();     // 作弊：F9 一键开/关无限 DNA
+    bool infiniteDNA() const { return m_infiniteDna; }
 
 signals:
     void dayPassed(int currentDay);
@@ -72,6 +79,10 @@ signals:
     void diseaseStatsChanged(DiseaseStats stats); // 属性变化 -> 刷新条形
     void skillsChanged();                         // 技能解锁/退化 -> 刷新技能树
     void discoveredChanged(bool discovered);      // 疾病被发现
+    // 某地区封锁状态变化（formula 形式三）：关闭机场/港口/陆地边境
+    void lockdownChanged(int regionId, bool airportClosed, bool portClosed, bool borderClosed);
+    // 游戏速度变化（0=暂停，含进入菜单）：供地图让海空载具与游戏时间同步
+    void speedChanged(int intervalMs);
 
 private slots:
     void onTick(); // 每天结算
@@ -80,6 +91,14 @@ private:
     void emitAllRegions();
     void recomputeDisease();          // 基础值 + 已解锁技能加成
     SkillDef *findSkill(const QString &id);
+    void updateLockdowns(long long worldInfected, long long worldAlive); // 形式三：按恐慌指数刷新各地区封锁
+    // 公式可调钩子（默认即“未点出相应技能”的状态，便于以后接技能）
+    double wealthResistance(int region) const;     // 财富抗性（默认 1.0）
+    double landTraitModifier() const;              // 陆地途径乘区（默认 1.0；鸟类/牲畜→更大）
+    double borderClosedModifier() const;           // 封锁后的边境修饰（默认 0.0；无视封锁DNA→0.05）
+    double airWaterRouteModifier() const;          // 海/空途径乘区（默认极低；空气/水源传播→更大）
+    double cureResistance() const;                 // 疾病抗药复杂性（形式五分母；默认 1.0，抗药/基因增强→更大）
+    bool   hasAnimalTransmission() const;          // 是否点出【鸟类/家畜传播】（影响陆地乘区与封锁泄漏）
 
     QTimer *m_timer;
     int m_currentDay;
@@ -101,6 +120,13 @@ private:
     QVector<RegionData> m_regions;
     QVector<double> m_infF;  // 精确感染人数（避免极低增速被整数截断）
     QVector<double> m_deadF; // 精确死亡人数
+    QVector<quint8> m_airportClosed; // 形式三：各地区机场封锁
+    QVector<quint8> m_portClosed;    // 各地区港口封锁
+    QVector<quint8> m_borderClosed;  // 各地区陆地边境封锁
+    // 各地区独立的三道封锁阈值（resetGame 时按高斯分布随机生成，并升序排列）
+    QVector<double> m_lockAirportT;  // 恐慌指数 > 此值 -> 关机场
+    QVector<double> m_lockPortT;     //                -> 关港口
+    QVector<double> m_lockBorderT;   //                -> 全境封锁
     long long m_worldPopulation;
 
     QVector<QVector<SkillDef>> m_skills; // 三页技能

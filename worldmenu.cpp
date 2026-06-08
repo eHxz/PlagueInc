@@ -8,6 +8,8 @@
 #include <QHBoxLayout>
 #include <QStackedLayout>
 #include <QStackedWidget>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QPushButton>
 #include <QLabel>
 #include <QFrame>
@@ -174,11 +176,18 @@ void LineChart::paintEvent(QPaintEvent *)
 // ============================================================================
 //  ReportWidget
 // ============================================================================
-ReportWidget::ReportWidget(QWidget *parent) : QWidget(parent) {}
+ReportWidget::ReportWidget(QWidget *parent) : QWidget(parent)
+{
+    setAttribute(Qt::WA_NoSystemBackground); // 透出菜单蓝色渐变
+}
 
 void ReportWidget::setLists(const QStringList &healthy, const QStringList &infected, const QStringList &dead)
 {
     m_healthy = healthy; m_infected = infected; m_dead = dead;
+    // 让控件高度足以容纳最长一列的全部条目，从而能在外层 QScrollArea 里用滚轮浏览全部。
+    const int maxRows = qMax(m_healthy.size(), qMax(m_infected.size(), m_dead.size()));
+    setMinimumHeight(56 + maxRows * 30 + 16);
+    updateGeometry();
     update();
 }
 
@@ -419,10 +428,27 @@ void WorldMenu::buildDataPage()
     m_dataStack->addWidget(list); // 0
 
     m_report = new ReportWidget();
+    // 报告可能很长（最多 58 个地区集中在一列）：放进可滚动区域，用滚轮浏览全部。
+    QScrollArea *reportScroll = new QScrollArea();
+    reportScroll->setWidget(m_report);
+    reportScroll->setWidgetResizable(true);
+    reportScroll->setFrameShape(QFrame::NoFrame);
+    reportScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    reportScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    reportScroll->setAttribute(Qt::WA_NoSystemBackground);
+    reportScroll->viewport()->setAttribute(Qt::WA_NoSystemBackground);
+    reportScroll->viewport()->setAutoFillBackground(false);
+    reportScroll->setStyleSheet(
+        "QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }"
+        "QScrollBar:vertical { background: rgba(255,255,255,30); width: 12px; margin: 2px; border-radius: 6px; }"
+        "QScrollBar::handle:vertical { background: rgba(120,180,225,180); border-radius: 6px; min-height: 30px; }"
+        "QScrollBar::handle:vertical:hover { background: rgba(150,205,245,220); }"
+        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }");
+
     m_popChart = new LineChart();
     m_cureChart = new LineChart();
     m_evoChart = new LineChart();
-    m_dataStack->addWidget(wrapChart("传染病疫情报告", m_report, m_dataStack));  // 1
+    m_dataStack->addWidget(wrapChart("传染病疫情报告", reportScroll, m_dataStack));  // 1
     m_dataStack->addWidget(wrapChart("全球人口曲线图", m_popChart, m_dataStack)); // 2
     m_dataStack->addWidget(wrapChart("解药研制曲线图", m_cureChart, m_dataStack)); // 3
     m_dataStack->addWidget(wrapChart("疾病进化曲线图", m_evoChart, m_dataStack));  // 4

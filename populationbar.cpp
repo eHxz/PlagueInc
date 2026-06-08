@@ -5,7 +5,8 @@
 PopulationBar::PopulationBar(QWidget *parent)
     : QWidget(parent)
 {
-    setMinimumHeight(56);
+    setMinimumHeight(16);
+    setAttribute(Qt::WA_NoSystemBackground); // 透出下方地图
 }
 
 void PopulationBar::setData(const QString &title, long long healthy, long long infected, long long dead)
@@ -21,6 +22,32 @@ void PopulationBar::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
+
+    // 紧凑模式：高度较小（作为世界条下方的“感染进度条”）时只画彩色比例条本身，
+    // 名称/数值已由上方的世界条展示，无需重复。
+    if (height() < 34) {
+        QRectF bar = rect().adjusted(6, 3, -6, -3);
+        long long total = m_healthy + m_infected + m_dead;
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(20, 20, 20));
+        p.drawRoundedRect(bar, 4, 4);
+        if (total > 0) {
+            double w = bar.width();
+            double deadW = w * double(m_dead) / total;
+            double infW = w * double(m_infected) / total;
+            double x = bar.left();
+            p.setBrush(QColor(10, 10, 10));
+            p.drawRect(QRectF(x, bar.top(), deadW, bar.height())); x += deadW;
+            p.setBrush(QColor(200, 30, 30));
+            p.drawRect(QRectF(x, bar.top(), infW, bar.height())); x += infW;
+            p.setBrush(QColor(40, 130, 210));
+            p.drawRect(QRectF(x, bar.top(), w - deadW - infW, bar.height()));
+        }
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QColor(90, 90, 95));
+        p.drawRoundedRect(bar, 4, 4);
+        return;
+    }
 
     const int margin = 12;
     const int titleH = 20;

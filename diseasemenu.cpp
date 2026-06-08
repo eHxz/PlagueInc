@@ -3,6 +3,8 @@
 #include "GameCore.h"
 
 #include <QPainter>
+#include <QPainterPath>
+#include <QPixmap>
 #include <QLinearGradient>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -11,6 +13,162 @@
 #include <QFrame>
 #include <QDate>
 #include <QResizeEvent>
+#include <QHideEvent>
+#include <QMediaPlayer>
+#include <QVideoSink>
+#include <QCoreApplication>
+#include <QUrl>
+#include <cmath>
+
+// ============================================================================
+//  HexGrid：平顶六边形蜂窝骨架（细线点阵）+ 格坐标 / 吸附
+//    几何（边长 R）：宽 = 15.5R（10 列，列距 1.5R），高 = 6√3R（对边距离 √3R）。
+//    偶数列 6 格、奇数列 5 格，合计 55 格；只画落在矩形内部的完整六边形。
+// ============================================================================
+namespace {
+const double kSqrt3 = 1.7320508075688772;
+const double kHcWidthInR  = 15.5;          // 蜂窝矩形宽 / R
+const double kHcHeightInR = 6.0 * kSqrt3;  // 蜂窝矩形高 / R
+const double kGridMargin  = 14.0;          // 蜂窝四周留白
+}
+
+HexGrid::HexGrid(QWidget *parent)
+    : QWidget(parent)
+{
+    setAttribute(Qt::WA_NoSystemBackground); // 透出菜单红色渐变
+}
+
+void HexGrid::recompute()
+{
+    const double availW = width() - m_rightInset - 2.0 * kGridMargin;
+    const double availH = height() - 2.0 * kGridMargin;
+    if (availW < 2.0 || availH < 2.0) {
+        m_R = 1.0;
+        m_origin = QPointF(kGridMargin, kGridMargin);
+        return;
+    }
+    m_R = qMax(1.0, std::min(availW / kHcWidthInR, availH / kHcHeightInR));
+    const double hcW = kHcWidthInR * m_R;
+    const double hcH = kHcHeightInR * m_R;
+    // 在左侧（扣除右侧面板预留后）可用区里居中
+    m_origin = QPointF(kGridMargin + (availW - hcW) / 2.0,
+                       kGridMargin + (availH - hcH) / 2.0);
+}
+
+QSizeF HexGrid::cellSize() const
+{
+    return QSizeF(2.0 * m_R, kSqrt3 * m_R);
+}
+
+QPointF HexGrid::cellCenter(int col, int row) const
+{
+    const double cx = m_origin.x() + m_R + 1.5 * m_R * col;
+    const double cy = (col % 2 == 0)
+        ? m_origin.y() + kSqrt3 * m_R / 2.0 + kSqrt3 * m_R * row   // 偶数列：首格顶边贴矩形上沿
+        : m_origin.y() + kSqrt3 * m_R + kSqrt3 * m_R * row;        // 奇数列：下移半格
+    return QPointF(cx, cy);
+}
+
+// 编号 1..55 -> (列,行)：一列一列、自上而下。偶数列 6 格、奇数列 5 格。
+bool HexGrid::indexToColRow(int n, int &col, int &row)
+{
+    int idx = 1;
+    for (int c = 0; c < kCols; ++c) {
+        const int rows = (c % 2 == 0) ? kRowsEven : kRowsOdd;
+        if (n >= idx && n < idx + rows) {
+            col = c;
+            row = n - idx;
+            return true;
+        }
+        idx += rows;
+    }
+    return false;
+}
+
+QPointF HexGrid::cellCenterByIndex(int n) const
+{
+    int col = 0, row = 0;
+    if (!indexToColRow(n, col, row))
+        return m_origin;
+    return cellCenter(col, row);
+}
+
+QPointF HexGrid::snapNormalized(const QPointF &norm, QSet<int> &occupied,
+                                int &outCol, int &outRow) const
+{
+    const double hcW = kHcWidthInR * m_R;
+    const double hcH = kHcHeightInR * m_R;
+    const QPointF target(m_origin.x() + norm.x() * hcW,
+                         m_origin.y() + norm.y() * hcH);
+    double best = 1e18;
+    int bc = 0, br = 0;
+    QPointF bp = target;
+    for (int col = 0; col < kCols; ++col) {
+        const int rows = rowsInColumn(col);
+        for (int row = 0; row < rows; ++row) {
+            if (occupied.contains(col * 100 + row))
+                continue;
+            const QPointF c = cellCenter(col, row);
+            const double dx = c.x() - target.x();
+            const double dy = c.y() - target.y();
+            const double d = dx * dx + dy * dy;
+            if (d < best) { best = d; bc = col; br = row; bp = c; }
+        }
+    }
+    occupied.insert(bc * 100 + br);
+    outCol = bc;
+    outRow = br;
+    return bp;
+}
+
+void HexGrid::setActive(bool a)
+{
+    if (m_active == a)
+        return;
+    m_active = a;
+    update();
+}
+
+void HexGrid::setRightInset(int px)
+{
+    // 总是重算：即使预留宽度不变，窗口尺寸也可能已变化（layoutHexes 每次调用前刷新）
+    m_rightInset = px;
+    recompute();
+    update();
+}
+
+void HexGrid::resizeEvent(QResizeEvent *)
+{
+    recompute();
+}
+
+void HexGrid::paintEvent(QPaintEvent *)
+{
+    if (!m_active)
+        return;
+    recompute();
+
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    // 所有格子拼成一条路径再一次性描边：共享的格壁只画一遍，避免叠加变亮的接缝。
+    QPainterPath path;
+    for (int col = 0; col < kCols; ++col) {
+        const int rows = rowsInColumn(col);
+        for (int row = 0; row < rows; ++row) {
+            const QPointF c = cellCenter(col, row);
+            QPolygonF hex;
+            for (int i = 0; i < 6; ++i) {
+                const double ang = M_PI / 180.0 * (60.0 * i); // 平顶
+                hex << QPointF(c.x() + m_R * std::cos(ang),
+                               c.y() + m_R * std::sin(ang));
+            }
+            path.addPolygon(hex);
+            path.closeSubpath();
+        }
+    }
+    p.strokePath(path, QPen(QColor(235, 175, 185, 70), 1.0));
+}
 
 // ============================================================================
 //  StatBars：底部 DNA + 传染性 / 严重性 / 致命性
@@ -110,6 +268,55 @@ void StatBars::paintEvent(QPaintEvent *)
 }
 
 // ============================================================================
+//  VideoBackground：概况(首页)循环播放的背景视频
+// ============================================================================
+VideoBackground::VideoBackground(QWidget *parent)
+    : QWidget(parent)
+{
+    setAttribute(Qt::WA_NoSystemBackground);
+    setAttribute(Qt::WA_TransparentForMouseEvents); // 背景层不拦截点击
+
+    m_player = new QMediaPlayer(this);
+    m_sink = new QVideoSink(this);
+    m_player->setVideoSink(m_sink);
+    m_player->setLoops(QMediaPlayer::Infinite); // 重复播放（无限循环）
+    // 不挂 QAudioOutput：视频静音，避免干扰背景音乐。
+
+    connect(m_sink, &QVideoSink::videoFrameChanged, this,
+            [this](const QVideoFrame &f) { m_frame = f; update(); });
+}
+
+void VideoBackground::setSource(const QString &filePath)
+{
+    m_player->setSource(QUrl::fromLocalFile(filePath));
+}
+
+void VideoBackground::start()
+{
+    if (m_player->playbackState() != QMediaPlayer::PlayingState)
+        m_player->play();
+}
+
+void VideoBackground::stop()
+{
+    m_player->pause();
+}
+
+void VideoBackground::paintEvent(QPaintEvent *)
+{
+    QPainter p(this);
+    if (m_frame.isValid()) {
+        QVideoFrame::PaintOptions opts;
+        opts.aspectRatioMode = Qt::KeepAspectRatioByExpanding; // 铺满并裁切
+        m_frame.paint(&p, rect(), opts);
+    } else {
+        p.fillRect(rect(), QColor(20, 8, 12)); // 首帧到来前的底色
+    }
+    // 轻微暗红叠加：让视频融入菜单红色调，并保证上层概况文字可读
+    p.fillRect(rect(), QColor(80, 12, 24, 90));
+}
+
+// ============================================================================
 //  DiseaseMenu
 // ============================================================================
 DiseaseMenu::DiseaseMenu(GameCore *core, QWidget *parent)
@@ -149,9 +356,8 @@ DiseaseMenu::DiseaseMenu(GameCore *core, QWidget *parent)
 
     root->addWidget(tabBar);
 
-    // ---- 中部：技能区（透明，承载六边形 + 信息面板 + 概况面板）----
-    m_hexArea = new QWidget();
-    m_hexArea->setAttribute(Qt::WA_NoSystemBackground);
+    // ---- 中部：技能区（透明蜂窝骨架，承载六边形 + 信息面板 + 概况面板）----
+    m_hexArea = new HexGrid();
     root->addWidget(m_hexArea, 1);
 
     // 信息面板（右侧，绝对定位于 hexArea 上）
@@ -180,6 +386,13 @@ DiseaseMenu::DiseaseMenu(GameCore *core, QWidget *parent)
     m_overview->setObjectName("OverviewPanel");
     m_overview->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     m_overview->setWordWrap(true);
+
+    // 概况(首页)背景循环视频：随可执行文件部署在 media/pathogen.mp4（见 CMake POST_BUILD）。
+    // 置于最底层（概况面板之下、菜单红色渐变之上），仅在概况页可见并播放。
+    m_videoBg = new VideoBackground(m_hexArea);
+    m_videoBg->setSource(QCoreApplication::applicationDirPath() + "/media/pathogen.mp4");
+    m_videoBg->lower();
+    m_videoBg->hide();
 
     // ---- 底部状态条 ----
     m_statBars = new StatBars();
@@ -260,6 +473,17 @@ void DiseaseMenu::onTabClicked(int tab)
     m_overview->setVisible(overview);
     m_infoPanel->setVisible(!overview);
 
+    // 背景视频仅在概况(首页)循环播放；切到其它分页则暂停省电。
+    if (m_videoBg) {
+        m_videoBg->setVisible(overview);
+        if (overview) {
+            m_videoBg->lower();   // 始终压在概况面板之下
+            m_videoBg->start();
+        } else {
+            m_videoBg->stop();
+        }
+    }
+
     if (overview) {
         QDate startDate = m_core->startDate();
         DiseaseStats d = m_core->diseaseStats();
@@ -305,7 +529,11 @@ void DiseaseMenu::rebuildSkills()
             continue;
         HexNode *h = new HexNode(s.id, m_hexArea);
         h->setGlyph(s.glyph);
-        h->setState(m_core->isUnlocked(s.id), m_core->canAfford(s.id));
+        // 六边形技能图标：已在打包时裁掉透明边并顺时针旋转 90°（平顶六边形），直接载入即可。
+        QPixmap raw(QString(":/hex/%1/%2.png").arg(page).arg(s.cell));
+        if (!raw.isNull())
+            h->setPixmap(raw);
+        h->setState(m_core->isUnlocked(s.id), m_core->isBuyable(s.id));
         h->setSelected(s.id == m_selectedSkill);
         connect(h, &HexNode::clicked, this, &DiseaseMenu::onHexClicked);
         h->show();
@@ -320,7 +548,10 @@ void DiseaseMenu::layoutHexes()
         return;
     const int aw = m_hexArea->width();
     const int ah = m_hexArea->height();
-    const int hw = 64;
+
+    // 背景视频：铺满整个技能区
+    if (m_videoBg)
+        m_videoBg->setGeometry(0, 0, aw, ah);
 
     // 信息面板：右侧
     const int panelW = qMin(320, aw / 3);
@@ -328,22 +559,28 @@ void DiseaseMenu::layoutHexes()
     // 概况面板：左上
     m_overview->setGeometry(16, 14, qMin(360, aw / 2), qMin(300, ah - 28));
 
-    int page = skillPageForTab(m_tab);
+    const int page = skillPageForTab(m_tab);
+    // 蜂窝骨架仅在三个技能页显示；预留右侧信息面板区，蜂窝在其左侧居中。
+    m_hexArea->setActive(page >= 0);
+    m_hexArea->setRightInset(m_infoPanel->isVisible() ? panelW + 32 : 0);
     if (page < 0)
         return;
     const QVector<SkillDef> &defs = m_core->skills(page);
 
-    const int usableW = qMax(1, aw - hw - 24);
-    const int usableH = qMax(1, ah - hw - 24);
+    // 每个已显形的技能：直接落在它指定的蜂窝格（cell 1..55）中心。
+    const QSizeF cs = m_hexArea->cellSize();
+    const int wPad = 8; // 选中描边余量
+    const int wW = static_cast<int>(cs.width())  + wPad;
+    const int wH = static_cast<int>(cs.height()) + wPad;
     for (HexNode *h : m_hexes) {
-        for (const SkillDef &s : defs) {
-            if (s.id == h->skillId()) {
-                int x = 12 + static_cast<int>(s.pos.x() * usableW);
-                int y = 12 + static_cast<int>(s.pos.y() * usableH);
-                h->move(x, y);
-                break;
-            }
-        }
+        const SkillDef *def = nullptr;
+        for (const SkillDef &s : defs)
+            if (s.id == h->skillId()) { def = &s; break; }
+        if (!def)
+            continue;
+        const QPointF c = m_hexArea->cellCenterByIndex(def->cell);
+        h->setGeometry(static_cast<int>(c.x() - wW / 2.0),
+                       static_cast<int>(c.y() - wH / 2.0), wW, wH);
     }
 }
 
@@ -400,6 +637,7 @@ void DiseaseMenu::updateInfoPanel()
         bonus << QString("减缓解药研发 +%1").arg(s->dCureSlow, 0, 'f', 2);
 
     const bool unlocked = m_core->isUnlocked(s->id);
+    const bool prereqMet = m_core->prereqsMet(s->id);
 
     // 选中未解锁技能：在条形上以浅色预览将增加的属性值
     DiseaseStats preview;
@@ -410,15 +648,25 @@ void DiseaseMenu::updateInfoPanel()
     }
     m_statBars->setPreview(preview);
 
+    QString lock;
+    if (!unlocked && !prereqMet) {
+        const QStringList miss = m_core->missingPrereqNames(s->id);
+        lock = QString("\n\n⚠ 需先解锁前置：%1").arg(miss.join("、"));
+    }
+
     m_infoTitle->setText(s->name);
     m_infoBody->setText(s->desc + "\n\n"
                         + bonus.join("\n")
                         + QString("\n\n消耗 DNA：%1").arg(s->cost)
+                        + lock
                         + (unlocked ? "\n\n（已进化）" : ""));
 
     if (unlocked) {
         m_evolveBtn->setText("退化");
         m_evolveBtn->setEnabled(true);
+    } else if (!prereqMet) {
+        m_evolveBtn->setText("未解锁前置");
+        m_evolveBtn->setEnabled(false);
     } else {
         m_evolveBtn->setText("进化");
         m_evolveBtn->setEnabled(m_core->canAfford(s->id));
@@ -446,7 +694,7 @@ void DiseaseMenu::refreshDNA()
     m_statBars->setDNA(m_core->dnaPoints());
     // 刷新六边形的可购买状态
     for (HexNode *h : m_hexes)
-        h->setState(m_core->isUnlocked(h->skillId()), m_core->canAfford(h->skillId()));
+        h->setState(m_core->isUnlocked(h->skillId()), m_core->isBuyable(h->skillId()));
     updateInfoPanel();
 }
 
@@ -462,4 +710,11 @@ void DiseaseMenu::paintEvent(QPaintEvent *)
 void DiseaseMenu::resizeEvent(QResizeEvent *)
 {
     layoutHexes();
+}
+
+void DiseaseMenu::hideEvent(QHideEvent *event)
+{
+    if (m_videoBg)
+        m_videoBg->stop(); // 菜单关闭后不再后台解码视频
+    QWidget::hideEvent(event);
 }

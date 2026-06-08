@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Xml)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Xml Multimedia)
 
 
 set(PROJECT_SOURCES
@@ -31,9 +31,14 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         populationbar.h populationbar.cpp
         skilltree.h skilltree.cpp
         hexnode.h hexnode.cpp
+        soundmanager.h soundmanager.cpp
+        hudpanel.h hudpanel.cpp
         diseasemenu.h diseasemenu.cpp
         worldmenu.h worldmenu.cpp
+        notice.h notice.cpp
         regions.h
+        gameparams.h
+        transportdata.h
         res.qrc
 
     )
@@ -55,7 +60,27 @@ else()
     endif()
 endif()
 
-target_link_libraries(PlagueInc PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)
+target_link_libraries(PlagueInc PRIVATE
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Xml
+    Qt${QT_VERSION_MAJOR}::Multimedia)
+
+# 把 soundtrack 复制到可执行文件目录，运行时按 applicationDirPath()/soundtrack 读取音频。
+add_custom_command(TARGET PlagueInc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/soundtrack"
+            "$<TARGET_FILE_DIR:PlagueInc>/soundtrack"
+    COMMENT "Copying soundtrack next to executable")
+
+# 把背景视频复制到可执行文件目录，运行时按 applicationDirPath()/media/pathogen.mp4 读取。
+# 用 ASCII 文件名（原始为“旋转病原体.mp4”，中文路径会让 Ninja/RCC 在中文环境下出错）。
+add_custom_command(TARGET PlagueInc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:PlagueInc>/media"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/media/pathogen.mp4"
+            "$<TARGET_FILE_DIR:PlagueInc>/media/pathogen.mp4"
+    COMMENT "Copying background video next to executable")
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
