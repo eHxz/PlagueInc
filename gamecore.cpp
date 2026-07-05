@@ -520,9 +520,16 @@ void GameCore::updateLockdowns(long long worldInfected, long long worldAlive)
                             + globalPanic * GameParams::kPanicGlobalWeight)
                            * wealthResistance(i);
 
-        const quint8 air  = idx > m_lockAirportT[i] ? 1 : 0;
-        const quint8 port = idx > m_lockPortT[i]    ? 1 : 0;
+        quint8 air  = idx > m_lockAirportT[i] ? 1 : 0;
+        quint8 port = idx > m_lockPortT[i]    ? 1 : 0;
         const quint8 bord = idx > m_lockBorderT[i]  ? 1 : 0;
+
+        // 如果该地区死亡人数超过总人口的80%，强制关闭机场和港口
+        if (r.totalPopulation > 0
+            && static_cast<double>(r.deadCount) / static_cast<double>(r.totalPopulation) > 0.8) {
+            air  = 1;
+            port = 1;
+        }
 
         if (air == m_airportClosed[i] && port == m_portClosed[i] && bord == m_borderClosed[i])
             continue; // 状态未变
@@ -712,8 +719,7 @@ void GameCore::onTick()
     emit dayPassed(m_currentDay);
     emit globalStatsUpdated(worldInfected, worldDead, worldAlive, m_worldPopulation);
 
-    if (m_currentDay % 15 == 0)
-        emit newsGenerated(QString("第 %1 天：全球感染 %2 人").arg(m_currentDay).arg(worldInfected));
+    // （不再定期播报每日感染人数——玩家可通过展开新闻面板回看历史消息。）
 
     // ---------- 7) 胜负判定 ----------
     if (m_cureProgress >= 100.0) {

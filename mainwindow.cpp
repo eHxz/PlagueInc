@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "menupage.h"
 #include "soundmanager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -12,6 +13,7 @@
 #include <QResizeEvent>
 #include <QKeyEvent>
 #include <QApplication>
+#include <QScrollArea>
 #include <QTimer>
 #include <QDebug>
 
@@ -31,7 +33,20 @@ MainWindow::MainWindow(QWidget *parent)
     m_mainStack = mainStack;
 
     // ==========================================
-    // 页面 0: 主游戏视图
+    // 页面 0: 菜单页 —— 视频背景 + 难度选择
+    // ==========================================
+    MenuPage *menuPage = new MenuPage(centralWidget);
+    m_menuPage = menuPage;
+    connect(menuPage, &MenuPage::difficultySelected, this, [this](int difficulty) {
+        // 难度暂存（待以后接入 GameCore 参数调整）
+        Q_UNUSED(difficulty);
+        if (m_mainStack && m_namePage)
+            m_mainStack->setCurrentWidget(m_namePage);
+    });
+    mainStack->addWidget(menuPage); // Index 0
+
+    // ==========================================
+    // 页面 1: 主游戏视图
     // ==========================================
     QWidget *gameView = new QWidget();
     m_gameView = gameView;
@@ -54,6 +69,22 @@ MainWindow::MainWindow(QWidget *parent)
     m_newsPanel->setBgOpacity(0.82);
     m_newsSlot = m_newsPanel->addSlot(QRectF(0.12, 0.10, 0.74, 0.55),
                                       Qt::AlignLeft, QColor(225, 236, 245), 0.40, true);
+
+    // ---- 新闻历史展开区域（默认隐藏，点击新闻面板后向下弹出）----
+    m_newsHistoryArea = new QScrollArea(hud);
+    m_newsHistoryArea->setWidgetResizable(true);
+    m_newsHistoryArea->hide();
+    m_newsHistoryArea->setStyleSheet(
+        "QScrollArea { background-color: rgba(12,18,28,220); border: 1px solid rgba(60,90,120,160); border-radius: 4px; }"
+        "QScrollBar:vertical { background: rgba(20,28,38,200); width: 10px; border-radius: 5px; }"
+        "QScrollBar::handle:vertical { background: rgba(90,140,190,180); border-radius: 5px; min-height: 30px; }"
+        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }");
+    m_newsHistoryLabel = new QLabel();
+    m_newsHistoryLabel->setWordWrap(true);
+    m_newsHistoryLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    m_newsHistoryLabel->setStyleSheet(
+        "color: #d0dae6; font-size: 14px; padding: 10px; background: transparent;");
+    m_newsHistoryArea->setWidget(m_newsHistoryLabel);
 
     // 左下角：DNA（点击 -> 疾病概况）
     m_diseasePanel = new HudPanel(hud);
@@ -130,52 +161,52 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(m_settingsBtn, &QPushButton::clicked, this, &MainWindow::openSettings);
 
-    mainStack->addWidget(gameView); // Index 0
+    mainStack->addWidget(gameView); // Index 1
 
     // ==========================================
-    // 命名页：初始进入游戏时为病原体命名
+    // 命名页：视频背景 + name.png 命名框（居中） + 右下角开始键
     // ==========================================
     QWidget *namePage = new QWidget();
     m_namePage = namePage;
     namePage->setObjectName("NamePage");
-    QVBoxLayout *nameLayout = new QVBoxLayout(namePage);
-    nameLayout->addStretch();
 
-    QLabel *nameTitle = new QLabel("为你的病原体命名");
-    nameTitle->setObjectName("NameTitle");
-    nameTitle->setAlignment(Qt::AlignHCenter);
-    QLabel *nameHint = new QLabel("输入名称后，点击地图上的地区即可开始这场全球瘟疫");
-    nameHint->setObjectName("NameHint");
-    nameHint->setAlignment(Qt::AlignHCenter);
+    // 视频背景
+    m_nameVideoBg = new VideoBackground(namePage);
+    m_nameVideoBg->setSource(QCoreApplication::applicationDirPath() + "/media/pathogen.mp4");
+    m_nameVideoBg->start();
+    m_nameVideoBg->lower();
 
-    m_nameEdit = new QLineEdit();
+    // name.png 命名框图片（居中，不缩放不裁剪）
+    m_nameBgLabel = new QLabel(namePage);
+    m_nameBgLabel->setPixmap(QPixmap(":/name.png"));
+    m_nameBgLabel->setScaledContents(true);
+    m_nameBgLabel->setAlignment(Qt::AlignCenter);
+
+    // 名称输入框（覆盖在 name.png 的输入区域上，透明背景融入原图）
+    m_nameEdit = new QLineEdit(namePage);
     m_nameEdit->setObjectName("NameEdit");
     m_nameEdit->setPlaceholderText("例如：瘟疫");
     m_nameEdit->setMaxLength(20);
-    m_nameEdit->setAlignment(Qt::AlignHCenter);
-    m_nameEdit->setFixedWidth(380);
+    m_nameEdit->setAlignment(Qt::AlignCenter);
+    m_nameEdit->setStyleSheet(
+        "QLineEdit { background: transparent; border: none; color: #ffffff;"
+        "  font-size: 14px; font-weight: bold; font-family: 'Microsoft YaHei', sans-serif; }");
 
-    QPushButton *nameOk = new QPushButton("开  始");
-    nameOk->setObjectName("NameOkBtn");
-    nameOk->setFixedWidth(380);
-    nameOk->setCursor(Qt::PointingHandCursor);
+    // 开始按钮（右下角）
+    m_nameOkBtn = new QPushButton("开  始", namePage);
+    m_nameOkBtn->setObjectName("NameOkBtn");
+    m_nameOkBtn->setCursor(Qt::PointingHandCursor);
+    m_nameOkBtn->setStyleSheet(
+        "QPushButton { font-size: 20px; font-weight: bold; padding: 10px 32px;"
+        "  color: #FFFFFF; background-color: #AA0000; border: none; border-radius: 4px; }"
+        "QPushButton:hover { background-color: #DD0000; }");
 
-    nameLayout->addWidget(nameTitle);
-    nameLayout->addSpacing(10);
-    nameLayout->addWidget(nameHint);
-    nameLayout->addSpacing(34);
-    QHBoxLayout *editRow = new QHBoxLayout();
-    editRow->addStretch(); editRow->addWidget(m_nameEdit); editRow->addStretch();
-    nameLayout->addLayout(editRow);
-    nameLayout->addSpacing(16);
-    QHBoxLayout *btnRow = new QHBoxLayout();
-    btnRow->addStretch(); btnRow->addWidget(nameOk); btnRow->addStretch();
-    nameLayout->addLayout(btnRow);
-    nameLayout->addStretch();
+    // 命名页尺寸变化时重新布局子控件
+    namePage->installEventFilter(this);
 
-    mainStack->addWidget(namePage); // Index 1
+    mainStack->addWidget(namePage); // Index 2
 
-    connect(nameOk, &QPushButton::clicked, this, &MainWindow::confirmDiseaseName);
+    connect(m_nameOkBtn, &QPushButton::clicked, this, &MainWindow::confirmDiseaseName);
     connect(m_nameEdit, &QLineEdit::returnPressed, this, &MainWindow::confirmDiseaseName);
 
     // ==========================================
@@ -240,8 +271,8 @@ MainWindow::MainWindow(QWidget *parent)
     // 默认正常速度（时间在选定地区后才真正流动）
     setSpeedNormal();
 
-    // 初始停在命名页，命名后再进入主游戏
-    mainStack->setCurrentWidget(namePage); // 初始停在命名页，命名后再进入主游戏
+    // 初始停在菜单页，选难度 → 命名页 → 主游戏
+    mainStack->setCurrentWidget(menuPage);
 
     // 监听键盘以捕获作弊码
     qApp->installEventFilter(this);
@@ -284,10 +315,36 @@ void MainWindow::setupConnections()
     connect(m_map, &MapWidget::oceanClicked, this, &MainWindow::onOceanClicked);
     connect(m_map, &MapWidget::startRequested, this, &MainWindow::onStartRequested);
 
-    // 新闻
+    // 新闻：显示最新一条，并存入历史（供展开后回看）
     connect(m_core, &GameCore::newsGenerated, this, [this](QString text) {
+        m_newsHistory.append(text);
         if (m_newsPanel)
             m_newsPanel->setText(m_newsSlot, text);
+        // 若当前已展开，实时更新历史面板内容
+        if (m_newsExpanded && m_newsHistoryLabel) {
+            QString all;
+            for (int i = m_newsHistory.size() - 1; i >= 0; --i)
+                all += "• " + m_newsHistory[i] + "\n";
+            m_newsHistoryLabel->setText(all);
+        }
+    });
+
+    // 点击新闻面板 → 展开/折叠历史列表
+    connect(m_newsPanel, &HudPanel::clicked, this, [this]() {
+        m_newsExpanded = !m_newsExpanded;
+        if (m_newsExpanded) {
+            QString all;
+            for (int i = m_newsHistory.size() - 1; i >= 0; --i)
+                all += "• " + m_newsHistory[i] + "\n";
+            if (all.isEmpty())
+                all = "暂无新闻。";
+            m_newsHistoryLabel->setText(all);
+            m_newsHistoryArea->show();
+            m_newsHistoryArea->raise();
+        } else {
+            m_newsHistoryArea->hide();
+        }
+        layoutNews();
     });
 }
 
@@ -454,6 +511,8 @@ void MainWindow::closeWorldMenu()
 // HUD 整体显示/隐藏（进入/退出菜单时调用）
 void MainWindow::setHudVisible(bool on)
 {
+    if (m_newsHistoryArea && !on)
+        m_newsHistoryArea->hide(); // 进入菜单时强制折叠新闻
     for (QWidget *w : {static_cast<QWidget *>(m_newsPanel),
                        static_cast<QWidget *>(m_diseasePanel),
                        static_cast<QWidget *>(m_curePanel),
@@ -543,6 +602,67 @@ void MainWindow::layoutHud()
         m_curePanel->setGeometry(W - margin - w, H - margin - hh, w, hh);
         m_curePanel->raise();
     }
+    layoutNews();
+}
+
+// 摆放新闻历史展开区域：在新闻面板正下方，约占半页高度。
+void MainWindow::layoutNews()
+{
+    if (!m_newsHistoryArea || !m_newsPanel || !m_map)
+        return;
+    if (!m_newsExpanded) {
+        m_newsHistoryArea->hide();
+        return;
+    }
+    const QRect nr = m_newsPanel->geometry();
+    const int W = m_map->width();
+    const int H = m_map->height();
+    const int x = nr.x();
+    const int y = nr.bottom() + 4;              // 紧贴新闻面板下缘
+    const int w = qMin(nr.width(), W - x - 12); // 不超出右边界
+    const int h = qMin(H / 2, H - y - 24);      // 约半页高，但不超出底边界
+    m_newsHistoryArea->setGeometry(x, y, w, h);
+    m_newsHistoryArea->show();
+    m_newsHistoryArea->raise();
+}
+
+// layoutNamePage (inserted below)
+void MainWindow::layoutNamePage()
+{
+    if (!m_namePage || !m_nameBgLabel || !m_nameEdit || !m_nameOkBtn)
+        return;
+
+    const int W = m_namePage->width();
+    const int H = m_namePage->height();
+
+    // video fills page
+    if (m_nameVideoBg)
+        m_nameVideoBg->setGeometry(0, 0, W, H);
+
+    // name.png: 缩放到原始尺寸 1/2，居中偏上
+    const QPixmap pm = m_nameBgLabel->pixmap(Qt::ReturnByValue);
+    if (pm.isNull())
+        return;
+    const int iw = pm.width() / 2;
+    const int ih = pm.height() / 2;
+    const int imgX = (W - iw) / 2;
+    const int imgY = (H - ih) / 2 - qRound(H * 0.25);  // 偏上
+    m_nameBgLabel->setGeometry(imgX, imgY, iw, ih);
+
+    // QLineEdit over input area (~39%-59% height, centered)
+    const int editX = imgX + qRound(iw * 0.15);
+    const int editW = qRound(iw * 0.70);
+    const int editY = imgY + qRound(ih * 0.39);
+    const int editH = qRound(ih * 0.20);
+    m_nameEdit->setGeometry(editX, editY, editW, editH);
+    m_nameEdit->raise();
+
+    // start button: bottom-right
+    const int btnW = 120;
+    const int btnH = 40;
+    const int margin = qRound(W * 0.04);
+    m_nameOkBtn->setGeometry(W - margin - btnW, H - margin - btnH, btnW, btnH);
+    m_nameOkBtn->raise();
 }
 
 // ==========================================
@@ -588,6 +708,13 @@ void MainWindow::restartGame()
     if (m_noticeManager)
         m_noticeManager->reset();    // 清空已触发记录
 
+    m_newsHistory.clear();           // 清空新闻历史
+    m_newsExpanded = false;
+    if (m_newsHistoryArea)
+        m_newsHistoryArea->hide();
+    if (m_newsPanel)
+        m_newsPanel->setText(m_newsSlot, QString());
+
     m_core->initWorld();   // 重置世界（含 m_seeded=false、日期、解药、历史）
     m_map->resetMap();     // 清空气泡与点阵密度
 
@@ -623,6 +750,7 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
     layoutHud();
+    layoutNews();
     if (m_diseaseMenu && m_diseaseMenu->isVisible())
         m_diseaseMenu->setGeometry(m_centralWidget->rect());
     if (m_worldMenu && m_worldMenu->isVisible())
@@ -637,6 +765,10 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
     if (event->type() == QEvent::Resize && m_map &&
         (watched == m_map || watched == m_map->viewport()))
         layoutHud();
+
+    // 命名页尺寸变化时重新布局
+    if (event->type() == QEvent::Resize && watched == m_namePage)
+        layoutNamePage();
 
     if (event->type() == QEvent::KeyPress) {
         QKeyEvent *ke = static_cast<QKeyEvent *>(event);

@@ -36,6 +36,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         diseasemenu.h diseasemenu.cpp
         worldmenu.h worldmenu.cpp
         notice.h notice.cpp
+        menupage.h menupage.cpp
         regions.h
         gameparams.h
         transportdata.h

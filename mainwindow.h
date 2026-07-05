@@ -14,8 +14,11 @@
 #include "hudpanel.h"
 #include "notice.h"
 
+class MenuPage;
+
 class QLineEdit;
 class QStackedLayout;
+class QScrollArea;
 
 class MainWindow : public QMainWindow
 {
@@ -69,12 +72,15 @@ private:
     void highlightSpeed(int which); // 0暂停 1正常 2两倍
     void applySpeed(int which);     // 0暂停 1正常 2两倍
     void layoutHud();               // 摆放主页面 HUD 覆盖层（新闻/DNA/解药/世界条/进度条）
+    void layoutNews();              // 摆放新闻展开区域（点击新闻面板后向下展开）
+    void layoutNamePage();          // 摆放命名页：视频背景 + name.png 居中 + 输入框 + 开始按钮
     void setHudVisible(bool on);    // 进入/退出菜单时整体隐藏/显示 HUD
 
     // 核心组件
     GameCore *m_core;
     MapWidget *m_map;
     PopulationBar *m_popBar;
+    MenuPage *m_menuPage = nullptr;
     DiseaseMenu *m_diseaseMenu = nullptr;
     WorldMenu *m_worldMenu = nullptr;
     NoticePopup *m_noticePopup = nullptr;     // 主页面正中央的报告弹窗
@@ -85,11 +91,19 @@ private:
     QWidget *m_gameView = nullptr;
     QWidget *m_namePage = nullptr;
     QLineEdit *m_nameEdit = nullptr;
+    VideoBackground *m_nameVideoBg = nullptr;   // 命名页视频背景
+    QLabel *m_nameBgLabel = nullptr;            // name.png 图片
+    QPushButton *m_nameOkBtn = nullptr;         // 开始按钮
     QFrame *m_gameTopBar = nullptr;
     QFrame *m_gameBottomBar = nullptr;
 
     // 主页面 HUD 覆盖层（绝对定位在游戏视图上，浮在地图之上）
-    HudPanel *m_newsPanel = nullptr;    // 左上角：新闻
+    HudPanel *m_newsPanel = nullptr;    // 左上角：新闻（折叠态，点击可展开）
+    // 新闻历史展开区域（点击新闻面板后向下弹出）
+    QScrollArea *m_newsHistoryArea = nullptr;
+    QLabel *m_newsHistoryLabel = nullptr;
+    QStringList m_newsHistory;                  // 全部新闻记录
+    bool m_newsExpanded = false;
     HudPanel *m_diseasePanel = nullptr; // 左下角：DNA（点击进疾病概况）
     HudPanel *m_curePanel = nullptr;    // 右下角：解药进度（点击进世界概况）
     HudPanel *m_worldPanel = nullptr;   // 下方正中：全球/观测地区 名字+感染+死亡（点击进世界概况）
